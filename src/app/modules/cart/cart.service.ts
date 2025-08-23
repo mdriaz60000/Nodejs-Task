@@ -1,190 +1,201 @@
+import { CartModel } from './cart.model';
+import { TCart, CartItem } from './cart.interface';
+import { ProductModel } from '../Product/product.model';
+import { PromoModel } from '../promo/promo.model';
+import { v4 as uuidv4 } from 'uuid';
 
+const createOrFetchCart = async (guestToken?: string): Promise<TCart> => {
+  if (!guestToken) {
+    guestToken = uuidv4();
+  }
 
+  let cart = await CartModel.findOne({ guestToken });
+  
+  if (!cart) {
+    cart = await CartModel.create({
+      guestToken,
+      items: [],
+      subtotal: 0,
+      discount: 0,
+      total: 0
+    });
+  }
 
-// import { v4 as uuidv4 } from 'uuid';
-// import { CartModel } from './cart.model';
-// import { TCart } from './cart.interface';
-// import { ProductModel } from '../Product/product.model';
-// import { PromoModel } from '../promo/promo.model';
+  return cart;
+};
 
-// export class CartService {
-//   static async createCart(): Promise<TCart> {
-//     const guestToken = uuidv4();
-//     const cart = new CartModel({
-//       guestToken,
-//       items: [],
-//       subtotal: 0,
-//       discount: 0,
-//       total: 0
-//     });
+const addItem = async (guestToken: string, item: Omit<CartItem, 'price'>): Promise<TCart> => {
+  const cart = await CartModel.findOne({ guestToken });
+  if (!cart) {
+    throw new Error('Cart not found');
+  }
 
-//     return cart.save();
-//   }
+  // Get product variant to verify price and inventory
+  const product = await ProductModel.findById(item.productId);
+  if (!product) {
+    throw new Error('Product not found');
+  }
 
-//   static async getCartByToken(guestToken: string): Promise<TCart | null> {
-//     return CartModel.findOne({ guestToken });
-//   }
+  const variant = product.variants.find(v => v._id?.toString() === item.variantId);
+  if (!variant) {
+    throw new Error('Product variant not found');
+  }
 
-//   static async addItemToCart(
-//     guestToken: string,
-//     productId: string,
-//     variantId: string,
-//     quantity: number
-//   ): Promise<TCart> {
-//     // Verify product and variant exist
-//     const product = await ProductModel.findById(productId);
-//     if (!product) {
-//       throw new Error('Product not found');
-//     }
+  if (variant.inventory < item.quantity) {
+    throw new Error('Insufficient inventory');
+  }
 
-//     const variant = product.variants.id(variantId);
-//     if (!variant) {
-//       throw new Error('Product variant not found');
-//     }
+  // Check if item already exists in cart
+  const existingItemIndex = cart.items.findIndex(
+    cartItem => cartItem.productId === item.productId && cartItem.variantId === item.variantId
+  );
 
-//     if (variant.inventory < quantity) {
-//       throw new Error('Insufficient inventory');
-//     }
+  if (existingItemIndex > -1) {
+    // Update existing item
+    cart.items[existingItemIndex].quantity += item.quantity;
+    cart.items[existingItemIndex].price = variant.price;
+  } else {
+    // Add new item
+    cart.items.push({
+      ...item,
+      price: variant.price
+    });
+  }
 
-//     let cart = await this.getCartByToken(guestToken);
-//     if (!cart) {
-//       cart = await this.createCart();
-//       cart.guestToken = guestToken;
-//     }
+  await calculateCartTotals(cart);
+  return await cart.save();
+};
 
-//     // Check if item already exists in cart
-//     const existingItemIndex = cart.items.findIndex(
-//       item => item.productId === productId && item.variantId === variantId
-//     );
+const updateItem = async (guestToken: string, productId: string, variantId: string, quantity: number): Promise<TCart> => {
+  const cart = await CartModel.findOne({ guestToken });
+  if (!cart) {
+    throw new Error('Cart not found');
+  }
 
-//     if (existingItemIndex > -1) {
-//       cart.items[existingItemIndex].quantity += quantity;
-//       if (cart.items[existingItemIndex].quantity > variant.inventory) {
-//         throw new Error('Insufficient inventory');
-//       }
-//     } else {
-//       cart.items.push({
-//         productId,
-//         variantId,
-//         quantity,
-//         price: variant.price
-//       });
-//     }
+  const itemIndex = cart.items.findIndex(
+    item => item.productId === productId && item.variantId === variantId
+  );
 
-//     await this.recalculateCart(cart);
-//     return cart.save();
-//   }
+  if (itemIndex === -1) {
+    throw new Error('Item not found in cart');
+  }
 
-//   static async updateCartItem(
-//     guestToken: string,
-//     productId: string,
-//     variantId: string,
-//     quantity: number
-//   ): Promise<TCart> {
-//     const cart = await this.getCartByToken(guestToken);
-//     if (!cart) {
-//       throw new Error('Cart not found');
-//     }
+  if (quantity <= 0) {
+    // Remove item if quantity is 0 or negative
+    cart.items.splice(itemIndex, 1);
+  } else {
+    // Update quantity
+    cart.items[itemIndex].quantity = quantity;
+  }
 
-//     const itemIndex = cart.items.findIndex(
-//       item => item.productId === productId && item.variantId === variantId
-//     );
+  await calculateCartTotals(cart);
+  return await cart.save();
+};
 
-//     if (itemIndex === -1) {
-//       throw new Error('Item not found in cart');
-//     }
+const removeItem = async (guestToken: string, productId: string, variantId: string): Promise<TCart> => {
+  const cart = await CartModel.findOne({ guestToken });
+  if (!cart) {
+    throw new Error('Cart not found');
+  }
 
-//     // Verify inventory
-//     const product = await ProductModel.findById(productId);
-//     if (!product) {
-//       throw new Error('Product not found');
-//     }
+  const itemIndex = cart.items.findIndex(
+    item => item.productId === productId && item.variantId === variantId
+  );
 
-//     const variant = product.variants.id(variantId);
-//     if (!variant || variant.inventory < quantity) {
-//       throw new Error('Insufficient inventory');
-//     }
+  if (itemIndex === -1) {
+    throw new Error('Item not found in cart');
+  }
 
-//     cart.items[itemIndex].quantity = quantity;
-//     await this.recalculateCart(cart);
-//     return cart.save();
-//   }
+  cart.items.splice(itemIndex, 1);
+  await calculateCartTotals(cart);
+  return await cart.save();
+};
 
-//   static async removeItemFromCart(
-//     guestToken: string,
-//     productId: string,
-//     variantId: string
-//   ): Promise<TCart> {
-//     const cart = await this.getCartByToken(guestToken);
-//     if (!cart) {
-//       throw new Error('Cart not found');
-//     }
+const applyPromoCode = async (guestToken: string, promoCode: string): Promise<TCart> => {
+  const cart = await CartModel.findOne({ guestToken });
+  if (!cart) {
+    throw new Error('Cart not found');
+  }
 
-//     cart.items = cart.items.filter(
-//       item => !(item.productId === productId && item.variantId === variantId)
-//     );
+  const promo = await PromoModel.findOne({ 
+    code: promoCode.toUpperCase(),
+    isActive: true,
+    validFrom: { $lte: new Date() },
+    validUntil: { $gte: new Date() }
+  });
 
-//     await this.recalculateCart(cart);
-//     return cart.save();
-//   }
+  if (!promo) {
+    throw new Error('Invalid or expired promo code');
+  }
 
-//   static async applyPromo(guestToken: string, promoCode: string): Promise<TCart> {
-//     const cart = await this.getCartByToken(guestToken);
-//     if (!cart) {
-//       throw new Error('Cart not found');
-//     }
+  cart.promoCode = promo.code;
+  await calculateCartTotals(cart, promo);
+  return await cart.save();
+};
 
-//     const promo = await PromoModel.findOne({
-//       code: promoCode.toUpperCase(),
-//       isActive: true,
-//       validFrom: { $lte: new Date() },
-//       validUntil: { $gte: new Date() }
-//     });
+const removePromoCode = async (guestToken: string): Promise<TCart> => {
+  const cart = await CartModel.findOne({ guestToken });
+  if (!cart) {
+    throw new Error('Cart not found');
+  }
 
-//     if (!promo) {
-//       throw new Error('Invalid or expired promo code');
-//     }
+  cart.promoCode = undefined;
+  await calculateCartTotals(cart);
+  return await cart.save();
+};
 
-//     cart.promoCode = promo.code;
-//     await this.recalculateCart(cart);
-//     return cart.save();
-//   }
+const getCart = async (guestToken: string): Promise<TCart | null> => {
+  return await CartModel.findOne({ guestToken });
+};
 
-//   static async removePromo(guestToken: string): Promise<TCart> {
-//     const cart = await this.getCartByToken(guestToken);
-//     if (!cart) {
-//       throw new Error('Cart not found');
-//     }
+const clearCart = async (guestToken: string): Promise<TCart> => {
+  const cart = await CartModel.findOne({ guestToken });
+  if (!cart) {
+    throw new Error('Cart not found');
+  }
 
-//     cart.promoCode = undefined;
-//     await this.recalculateCart(cart);
-//     return cart.save();
-//   }
+  cart.items = [];
+  cart.subtotal = 0;
+  cart.discount = 0;
+  cart.total = 0;
+  cart.promoCode = undefined;
 
-//   private static async recalculateCart(cart: TCart): Promise<void> {
-//     cart.subtotal = cart.items.reduce(
-//       (sum, item) => sum + (item.price * item.quantity),
-//       0
-//     );
+  return await cart.save();
+};
 
-//     cart.discount = 0;
-//     if (cart.promoCode) {
-//       const promo = await PromoModel.findOne({
-//         code: cart.promoCode,
-//         isActive: true,
-//         validFrom: { $lte: new Date() },
-//         validUntil: { $gte: new Date() }
-//       });
+// Calculate cart totals
+const calculateCartTotals = async (cart: any, promo?: any): Promise<void> => {
+  let subtotal = 0;
+  
+  // Calculate subtotal
+  for (const item of cart.items) {
+    subtotal += item.price * item.quantity;
+  }
 
-//       if (promo) {
-//         if (promo.type === 'percent') {
-//           cart.discount = Math.round(cart.subtotal * (promo.value / 100));
-//         } else {
-//           cart.discount = Math.min(promo.value, cart.subtotal);
-//         }
-//       }
-//     }
+  cart.subtotal = subtotal;
 
-//     cart.total = Math.max(0, cart.subtotal - cart.discount);
-//   }
-// }
+  // Calculate discount if promo is applied
+  if (promo && cart.promoCode === promo.code) {
+    if (promo.type === 'percent') {
+      cart.discount = (subtotal * promo.value) / 100;
+    } else {
+      cart.discount = Math.min(promo.value, subtotal); // Fixed discount, but not more than subtotal
+    }
+  } else {
+    cart.discount = 0;
+  }
+
+  cart.total = subtotal - cart.discount;
+};
+
+export const cartService = {
+  createOrFetchCart,
+  addItem,
+  updateItem,
+  removeItem,
+  applyPromoCode,
+  removePromoCode,
+  getCart,
+  clearCart,
+  calculateCartTotals
+};

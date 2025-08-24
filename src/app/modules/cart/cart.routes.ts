@@ -3,17 +3,18 @@ import { cartController } from './cart.controller';
 
 import { z } from 'zod';
 import { addItemSchema, updateItemSchema, applyPromoSchema } from './cart.validation';
-import validateRequest from '../../middlewares/validateRequest';
+import { validateRequest } from '../../middlewares/validateRequest';
+
 
 const router = express.Router();
 
-// Create or fetch cart
+
 router.post('/', cartController.createOrFetchCart);
 
-// Get cart by guest token
+
 router.get('/:guestToken', cartController.getCart);
 
-// Add item to cart
+
 router.post('/:guestToken/items', 
   validateRequest(z.object({
     params: z.object({
@@ -24,7 +25,7 @@ router.post('/:guestToken/items',
   cartController.addItem
 );
 
-// Update item quantity
+
 router.put('/:guestToken/items/:productId/:variantId', 
   validateRequest(z.object({
     params: z.object({

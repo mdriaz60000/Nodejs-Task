@@ -6,16 +6,16 @@ const createFromDb = async (payload: TOrder) => {
     const orderNumber = `ORD-${Date.now()}`;
     console.log(payload)
 
-  // calculate subtotal
+  
   const subtotal = payload.items.reduce(
     (sum: number, item: any) => sum + item.price * item.quantity,
     0
   );
 
-  // apply discount if any
+ 
   const discount = payload.discount || 0;
 
-  // total
+
   const total = subtotal - discount;
 
   const order = await OrderModel.create({

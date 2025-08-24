@@ -59,19 +59,19 @@ const processCheckout = async (checkoutData: CheckoutRequest): Promise<CheckoutR
   if (!cart) throw new Error('Cart not found');
   if (cart.items.length === 0) throw new Error('Cart is empty');
 
-  // Validate inventory
+
   await validateInventory(cart.items);
 
-  // Validate promo code if provided
+
   let promo = null;
   if (checkoutData.promoCode) {
     promo = await validatePromoCode(checkoutData.promoCode);
   }
 
-  // Generate order number
+  
   const orderNumber = generateOrderNumber();
 
-  // Create order
+
   const orderData: Partial<TOrder> = {
     orderNumber,
     cartId: cart._id!.toString(),
@@ -85,10 +85,10 @@ const processCheckout = async (checkoutData: CheckoutRequest): Promise<CheckoutR
 
   const order = await OrderModel.create(orderData);
 
-  // Update inventory
+
   await updateInventory(cart.items);
 
-  // Clear cart
+
   await CartModel.findByIdAndUpdate(cart._id, {
     items: [],
     subtotal: 0,
@@ -97,7 +97,7 @@ const processCheckout = async (checkoutData: CheckoutRequest): Promise<CheckoutR
     promoCode: undefined,
   });
 
-  // Return checkout response
+  
   return {
     orderId: order._id!.toString(),
     orderNumber: order.orderNumber,

@@ -30,7 +30,7 @@ const addItem = async (guestToken: string, item: Omit<CartItem, 'price'>): Promi
     throw new Error('Cart not found');
   }
 
-  // Get product variant to verify price and inventory
+ 
   const product = await ProductModel.findById(item.productId);
   if (!product) {
     throw new Error('Product not found');
@@ -45,17 +45,17 @@ const addItem = async (guestToken: string, item: Omit<CartItem, 'price'>): Promi
     throw new Error('Insufficient inventory');
   }
 
-  // Check if item already exists in cart
+
   const existingItemIndex = cart.items.findIndex(
     cartItem => cartItem.productId === item.productId && cartItem.variantId === item.variantId
   );
 
   if (existingItemIndex > -1) {
-    // Update existing item
+   
     cart.items[existingItemIndex].quantity += item.quantity;
     cart.items[existingItemIndex].price = variant.price;
   } else {
-    // Add new item
+    
     cart.items.push({
       ...item,
       price: variant.price
@@ -81,10 +81,10 @@ const updateItem = async (guestToken: string, productId: string, variantId: stri
   }
 
   if (quantity <= 0) {
-    // Remove item if quantity is 0 or negative
+    
     cart.items.splice(itemIndex, 1);
   } else {
-    // Update quantity
+    
     cart.items[itemIndex].quantity = quantity;
   }
 
@@ -163,23 +163,23 @@ const clearCart = async (guestToken: string): Promise<TCart> => {
   return await cart.save();
 };
 
-// Calculate cart totals
+
 const calculateCartTotals = async (cart: any, promo?: any): Promise<void> => {
   let subtotal = 0;
   
-  // Calculate subtotal
+
   for (const item of cart.items) {
     subtotal += item.price * item.quantity;
   }
 
   cart.subtotal = subtotal;
 
-  // Calculate discount if promo is applied
+  
   if (promo && cart.promoCode === promo.code) {
     if (promo.type === 'percent') {
       cart.discount = (subtotal * promo.value) / 100;
     } else {
-      cart.discount = Math.min(promo.value, subtotal); // Fixed discount, but not more than subtotal
+      cart.discount = Math.min(promo.value, subtotal); 
     }
   } else {
     cart.discount = 0;

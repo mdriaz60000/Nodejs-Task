@@ -6,7 +6,7 @@ import { checkoutSchema } from './checkout.validation';
 
 const router = express.Router();
 
-// Process checkout
+
 router.post('/', 
   validateRequest(z.object({
     body: checkoutSchema
@@ -14,7 +14,7 @@ router.post('/',
   CheckoutController.processCheckout
 );
 
-// Get checkout summary
+
 router.get('/summary/:guestToken', 
   validateRequest(z.object({
     params: z.object({

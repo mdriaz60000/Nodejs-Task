@@ -16,7 +16,7 @@ const processCheckout = asyncCatch(async (req: Request, res: Response, next: Nex
    });
 });
 
-// Get checkout summary
+
 const getCheckoutSummary = asyncCatch(async (req: Request, res: Response, next: NextFunction) => {
   const { guestToken } = req.params;
 

@@ -207,23 +207,25 @@ interface TOrder {
 
 1. Create a new cart:
 ```bash
-curl -X POST http://localhost:5000/api/v1/cart
+curl -X POST https://ecomerce-eight-pearl.vercel.app/api/v1/cart
 ```
 
 2. Add item to cart:
+ 
 ```bash
-curl -X POST http://localhost:5000/api/v1/cart/{guestToken}/items \
+curl -X POST https://ecomerce-eight-pearl.vercel.app/api/v1/cart/{guestToken}/items \
+  -H " example: guestToken(af229b8d-892b-4738-89e1-cd4c4de2547a)' \
   -H "Content-Type: application/json" \
   -d '{
-    "productId": "product123",
-    "variantId": "variant456",
+    "productId": "68a915a36295684c3c1a6478",
+    "variantId": "68a915a36295684c3c1a647a",
     "quantity": 2
   }'
 ```
 
 3. Apply promo code:
 ```bash
-curl -X POST http://localhost:5000/api/v1/cart/{guestToken}/promo \
+curl -X POST https://ecomerce-eight-pearl.vercel.app/v1/cart/{guestToken}/promo \
   -H "Content-Type: application/json" \
   -d '{
     "promoCode": "SAVE20"
@@ -232,7 +234,7 @@ curl -X POST http://localhost:5000/api/v1/cart/{guestToken}/promo \
 
 4. Checkout:
 ```bash
-curl -X POST http://localhost:5000/api/v1/checkout \
+curl -X POST https://ecomerce-eight-pearl.vercel.app/api/v1/checkout \
   -H "Content-Type: application/json" \
   -d '{
     "guestToken": "{guestToken}",
@@ -253,7 +255,7 @@ curl -X POST http://localhost:5000/api/v1/checkout \
 ### Creating Promo Codes
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/promo \
+curl -X POST https://ecomerce-eight-pearl.vercel.app/api/v1/promo \
   -H "Content-Type: application/json" \
   -d '{
     "code": "SAVE20",

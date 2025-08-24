@@ -1,23 +1,22 @@
 import { z } from 'zod';
 
-// Add item to cart validation
+
 export const addItemSchema = z.object({
   productId: z.string().min(1, 'Product ID is required'),
   variantId: z.string().min(1, 'Variant ID is required'),
   quantity: z.number().int().positive('Quantity must be a positive integer').min(1, 'Quantity must be at least 1')
 });
 
-// Update item validation
+
 export const updateItemSchema = z.object({
   quantity: z.number().int().min(0, 'Quantity must be 0 or greater')
 });
 
-// Apply promo code validation
 export const applyPromoSchema = z.object({
   promoCode: z.string().min(1, 'Promo code is required').toUpperCase()
 });
 
-// Guest token validation
+
 export const guestTokenSchema = z.object({
   guestToken: z.string().min(1, 'Guest token is required')
 });
